@@ -1,12 +1,14 @@
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import google.generativeai as genai
+from google import genai
 from fastapi import FastAPI, Request
+import uvicorn
 
 app = FastAPI()
 executor = ThreadPoolExecutor(max_workers=5)
 
+# 환경 변수에서 키를 불러온 후 혹시 모를 공백 제거
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 
 RESTRICTED_KEYWORDS = ["19금", "성인", "야동", "야설", "조건만남", "도박", "바카라", "토토", "대출", "마약", "섹스", "자살"]
@@ -29,11 +31,13 @@ def call_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "❌ [오류]: GEMINI_API_KEY 환경변수가 설정되어 있지 않습니다!"
     
-    genai.configure(api_key=GEMINI_API_KEY)
+    # AQ... 형태의 키를 OAuth가 아닌 API Key로 강제 인식하도록 설정
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # 가장 기본적이고 오류 없는 표준 모델 호출
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
     
     if response.text:
         return response.text.strip()
@@ -99,3 +103,7 @@ async def chat(request: Request):
                 ]
             }
         }
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
