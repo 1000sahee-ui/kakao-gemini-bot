@@ -90,9 +90,11 @@ async def chat(request: Request):
                 f"질문: {user_message}"
             )
 
-        # 5. Gemini AI 답변 생성 (요청된 gemini-3.6-flash 사용)
-        model = genai.GenerativeModel("gemini-3.6-flash")
-        response = model.generate_content(user_prompt)
+        # 5. Gemini AI 답변 생성 (유효한 모델명 gemini-1.5-flash 또는 gemini-2.5-flash 사용)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # FastAPI 비동기 환경에 맞게 generate_content_async 사용
+        response = await model.generate_content_async(user_prompt)
         reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
         return {
@@ -107,7 +109,7 @@ async def chat(request: Request):
                 "outputs": [
                     {
                         "simpleText": {
-                            "text": f"[오류 발생]: {str(e)}"
+                            "text": f"가을이가 잠깐 딴생각을 했나 봐요! 다시 말해 주실래요? 🐣"
                         }
                     }
                 ]
