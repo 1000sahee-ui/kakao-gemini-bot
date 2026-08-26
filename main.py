@@ -1,15 +1,17 @@
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from google import genai
+import google.generativeai as genai
 from fastapi import FastAPI, Request
 import uvicorn
 
 app = FastAPI()
 executor = ThreadPoolExecutor(max_workers=5)
 
-# 환경 변수에서 키를 불러온 후 혹시 모를 공백 제거
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 RESTRICTED_KEYWORDS = ["19금", "성인", "야동", "야설", "조건만남", "도박", "바카라", "토토", "대출", "마약", "섹스", "자살"]
 RESTRICTED_RESPONSE = "어? 그건 가을이가 잘 모르는 나쁜 단어 같아요! 몰라요 몰라 🙈"
@@ -24,24 +26,24 @@ FIXED_RESPONSES = {
 
 BASE_INSTRUCTION = (
     "너는 10살 초등학생 여자아이 '가을이'야. "
-    "밝고 씩씩하며 귀엽고 순수하게 말해줘. 이모티콘을 적절히 사용해줘."
+    "밝고 씩씩하며 귀엽고 순수하게 말해줘. 이모티콘을 적절히 사용해주고, "
+    "카카오톡 대화니까 답변은 무조건 2문장 이내로 아주 짧게 핵심만 말해줘."
 )
 
 def call_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "❌ [오류]: GEMINI_API_KEY 환경변수가 설정되어 있지 않습니다!"
     
-    # AQ... 형태의 키를 OAuth가 아닌 API Key로 강제 인식하도록 설정
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-    
-    if response.text:
-        return response.text.strip()
-    return "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
+    try:
+        # 올바른 모델명으로 수정 (404 에러 방지)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
+        
+        if response and response.text:
+            return response.text.strip()
+        return "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
+    except Exception as e:
+        return f"가을이 머리가 아파요! (오류: {str(e)})"
 
 @app.post("/chat")
 async def chat(request: Request):
@@ -51,14 +53,7 @@ async def chat(request: Request):
         user_properties = body.get("userRequest", {}).get("user", {}).get("properties", {})
         user_nickname = user_properties.get("nickname", "") if user_properties else ""
 
-        # 1. 호출어 검사
-        if "가을아" not in user_message and "가을이" not in user_message:
-            return {
-                "version": "2.0",
-                "template": {"outputs": [{"simpleText": {"text": "가을이를 부르시려면 '가을아' 또는 '가을이'라고 말씀해 주세요! 🐣"}}]}
-            }
-
-        # 2. 금지어 검사
+        # 1. 금지어 검사 (호출어 필터보다 먼저 수행)
         for bad_word in RESTRICTED_KEYWORDS:
             if bad_word in user_message:
                 return {
@@ -66,13 +61,20 @@ async def chat(request: Request):
                     "template": {"outputs": [{"simpleText": {"text": RESTRICTED_RESPONSE}}]}
                 }
 
-        # 3. 고정 답변 검사
+        # 2. 고정 답변 검사
         for keyword, fixed_answer in FIXED_RESPONSES.items():
             if keyword in user_message:
                 return {
                     "version": "2.0",
                     "template": {"outputs": [{"simpleText": {"text": fixed_answer}}]}
                 }
+
+        # 3. 호출어 검사
+        if "가을아" not in user_message and "가을이" not in user_message:
+            return {
+                "version": "2.0",
+                "template": {"outputs": [{"simpleText": {"text": "가을이를 부르시려면 '가을아' 또는 '가을이'라고 말씀해 주세요! 🐣"}}]}
+            }
 
         # 4. 프롬프트 구성
         if "101동1604호" in user_nickname:
@@ -81,15 +83,25 @@ async def chat(request: Request):
             display_name = user_nickname if user_nickname else "선생"
             full_prompt = f"{BASE_INSTRUCTION}\n상대방: {display_name} 선생님\n말투: 예의바르고 귀여운 존댓말\n질문: {user_message}"
 
-        # 5. 실행
-        loop = asyncio.get_event_loop()
-        reply_text = await loop.run_in_executor(executor, call_gemini, full_prompt)
+        # 5. 비동기 실행 (3.8초 타임아웃)
+        loop = asyncio.get_running_loop()
+        reply_text = await asyncio.wait_for(
+            loop.run_in_executor(executor, call_gemini, full_prompt),
+            timeout=3.8
+        )
 
         return {
             "version": "2.0",
             "template": {"outputs": [{"simpleText": {"text": reply_text}}]}
         }
 
+    except asyncio.TimeoutError:
+        return {
+            "version": "2.0",
+            "template": {
+                "outputs": [{"simpleText": {"text": "가을이가 생각하는 데 시간이 조금 걸려요! 다시 한번 말씀해 주세요 🐣"}}]
+            }
+        }
     except Exception as e:
         return {
             "version": "2.0",
