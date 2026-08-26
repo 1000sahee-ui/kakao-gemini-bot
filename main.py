@@ -1,7 +1,7 @@
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import google.generativeai as genai
+from google import genai
 from fastapi import FastAPI, Request
 
 app = FastAPI()
@@ -29,11 +29,14 @@ def call_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "❌ [오류]: GEMINI_API_KEY 환경변수가 설정되어 있지 않습니다!"
     
-    genai.configure(api_key=GEMINI_API_KEY)
+    # 최신 google-genai SDK 클라이언트 생성
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # gemini-pro 모델 사용 (가장 넓은 호환성)
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(prompt)
+    # 최신 SDK 표준 모델 'gemini-2.5-flash' 호출
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
     
     if response.text:
         return response.text.strip()
