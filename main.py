@@ -71,31 +71,31 @@ async def chat(request: Request):
                     "template": {"outputs": [{"simpleText": {"text": fixed_answer}}]}
                 }
 
-        # 4. 사용자 프롬프트 구성
+        # 4. 프롬프트 및 페르소나 지침 분리
         if "101동1604호" in user_nickname:
-            user_prompt = (
-                f"{BASE_SYSTEM_INSTRUCTION}\n\n"
-                "[시스템 지침: 대화하는 사람은 너의 자랑스러운 '아빠'야! "
+            system_instruction = (
+                f"{BASE_SYSTEM_INSTRUCTION}\n"
+                "대화하는 사람은 너의 자랑스러운 '아빠'야! "
                 "아빠한테 애교 섞인 10살 딸아이처럼 '아빠아~', '아빠!'라고 부르면서 "
-                "엄청 친근하고 귀엽게 반말과 애교 섞인 말투로 대답해줘.]\n\n"
-                f"아빠의 질문: {user_message}"
+                "엄청 친근하고 귀엽게 반말과 애교 섞인 말투로 대답해줘."
             )
         else:
             display_name = user_nickname if user_nickname else "선생"
-            user_prompt = (
-                f"{BASE_SYSTEM_INSTRUCTION}\n\n"
-                f"[시스템 지침: 대화하는 사람은 '{display_name}' 님이야. "
+            system_instruction = (
+                f"{BASE_SYSTEM_INSTRUCTION}\n"
+                f"대화하는 사람은 '{display_name}' 님이야. "
                 f"상대방을 반드시 '{display_name} 선생님!'이라고 부르며, "
-                "10살 아이답게 씩씩하고 예의 바르면서도 엄청 다정하고 귀엽게 존댓말로 답변해줘.]\n\n"
-                f"질문: {user_message}"
+                "10살 아이답게 씩씩하고 예의 바르면서도 엄청 다정하고 귀엽게 존댓말로 답변해줘."
             )
 
-        # 5. Gemini AI 답변 생성 (유효한 모델명 gemini-1.5-flash 또는 gemini-2.5-flash 사용)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # 5. Gemini 모델 선언 및 호출 (안정적인 동기 방식 사용)
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_instruction
+        )
         
-        # FastAPI 비동기 환경에 맞게 generate_content_async 사용
-        response = await model.generate_content_async(user_prompt)
-        reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
+        response = model.generate_content(user_message)
+        reply_text = response.text.strip() if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
         return {
             "version": "2.0",
@@ -103,13 +103,15 @@ async def chat(request: Request):
         }
 
     except Exception as e:
+        # 터미널 콘솔 로그에 정확한 에러 출력
+        print(f"[ERROR]: {e}")
         return {
             "version": "2.0",
             "template": {
                 "outputs": [
                     {
                         "simpleText": {
-                            "text": f"가을이가 잠깐 딴생각을 했나 봐요! 다시 말해 주실래요? 🐣"
+                            "text": f"가을이가 잠깐 딴생각을 했나 봐요! 다시 말해 주실래요? 🐣\n(에러: {str(e)})"
                         }
                     }
                 ]
