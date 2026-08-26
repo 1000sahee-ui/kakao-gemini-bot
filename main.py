@@ -74,6 +74,7 @@ async def chat(request: Request):
         # 4. 사용자 프롬프트 구성 (아빠 / 선생님 구별)
         if "101동1604호" in user_nickname:
             user_prompt = (
+                f"{BASE_SYSTEM_INSTRUCTION}\n\n"
                 "[시스템 지침: 대화하는 사람은 너의 자랑스러운 '아빠'야! "
                 "아빠한테 애교 섞인 10살 딸아이처럼 '아빠아~', '아빠!'라고 부르면서 "
                 "엄청 친근하고 귀엽게 반말과 애교 섞인 말투로 대답해줘.]\n\n"
@@ -82,14 +83,15 @@ async def chat(request: Request):
         else:
             display_name = user_nickname if user_nickname else "선생"
             user_prompt = (
+                f"{BASE_SYSTEM_INSTRUCTION}\n\n"
                 f"[시스템 지침: 대화하는 사람은 '{display_name}' 님이야. "
                 f"상대방을 반드시 '{display_name} 선생님!'이라고 부르며, "
                 "10살 아이답게 씩씩하고 예의 바르면서도 엄청 다정하고 귀엽게 존댓말로 답변해줘.]\n\n"
                 f"질문: {user_message}"
             )
 
-        # 5. Gemini AI 답변 생성 (가장 표준적인 모델 사용)
-        model = genai.GenerativeModel("gemini-1.5-flash-latest", system_instruction=BASE_SYSTEM_INSTRUCTION)
+        # 5. Gemini AI 답변 생성 (호환성 보장되는 gemini-2.0-flash 사용)
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(user_prompt)
         reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
@@ -99,7 +101,6 @@ async def chat(request: Request):
         }
 
     except Exception as e:
-        # ⚠️ 카카오톡으로 실제 발생한 영문 에러 출력
         return {
             "version": "2.0",
             "template": {
