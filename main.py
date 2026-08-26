@@ -40,7 +40,22 @@ async def chat(request: Request):
         user_properties = body.get("userRequest", {}).get("user", {}).get("properties", {})
         user_nickname = user_properties.get("nickname", "") if user_properties else ""
 
-        # 1. 부적절한 단어 차단
+        # 1. "가을아" 또는 "가을이" 호출 조건 검사 (호출어가 없으면 무응답)
+        if "가을아" not in user_message and "가을이" not in user_message:
+            return {
+                "version": "2.0",
+                "template": {
+                    "outputs": [
+                        {
+                            "simpleText": {
+                                "text": "가을이를 부르시려면 '가을아' 또는 '가을이'라고 말씀해 주세요! 🐣"
+                            }
+                        }
+                    ]
+                }
+            }
+
+        # 2. 부적절한 단어 차단
         for bad_word in RESTRICTED_KEYWORDS:
             if bad_word in user_message:
                 return {
@@ -48,7 +63,7 @@ async def chat(request: Request):
                     "template": {"outputs": [{"simpleText": {"text": RESTRICTED_RESPONSE}}]}
                 }
 
-        # 2. 고정 답변 검색
+        # 3. 고정 답변 검색
         for keyword, fixed_answer in FIXED_RESPONSES.items():
             if keyword in user_message:
                 return {
@@ -56,7 +71,7 @@ async def chat(request: Request):
                     "template": {"outputs": [{"simpleText": {"text": fixed_answer}}]}
                 }
 
-        # 3. 사용자 프롬프트 구성
+        # 4. 사용자 프롬프트 구성 (아빠 / 선생님 구별)
         if "101동1604호" in user_nickname:
             user_prompt = (
                 "[시스템 지침: 대화하는 사람은 너의 자랑스러운 '아빠'야! "
@@ -73,8 +88,8 @@ async def chat(request: Request):
                 f"질문: {user_message}"
             )
 
-        # 4. Gemini AI 답변 생성 (안정적인 gemini-1.5-flash 지정)
-        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=BASE_SYSTEM_INSTRUCTION)
+        # 5. Gemini AI 답변 생성 (최신 표준 gemini-2.5-flash 적용)
+        model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=BASE_SYSTEM_INSTRUCTION)
         response = model.generate_content(user_prompt)
         reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
@@ -84,15 +99,13 @@ async def chat(request: Request):
         }
 
     except Exception as e:
-        # 에러 발생 원인을 카톡 메시지로 출력하도록 변경
-        error_msg = f"[오류 발생]: {str(e)}"
         return {
             "version": "2.0",
             "template": {
                 "outputs": [
                     {
                         "simpleText": {
-                            "text": error_msg[:300]  # 카톡으로 에러 원인 출력
+                            "text": "가을이가 잠시 딴생각을 했나 봐요! 다시 한번 말씀해 주세요 🐣"
                         }
                     }
                 ]
