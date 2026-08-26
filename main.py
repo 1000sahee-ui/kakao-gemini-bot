@@ -1,7 +1,7 @@
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from google import genai
+import google.generativeai as genai
 from fastapi import FastAPI, Request
 
 app = FastAPI()
@@ -29,14 +29,11 @@ def call_gemini(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "❌ [오류]: GEMINI_API_KEY 환경변수가 설정되어 있지 않습니다!"
     
-    # 최신 google-genai SDK 클라이언트 생성
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    genai.configure(api_key=GEMINI_API_KEY)
     
-    # 최신 SDK 표준 모델 'gemini-2.5-flash' 호출
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
+    # 가장 기본적이고 오류 없는 표준 모델 호출
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
     
     if response.text:
         return response.text.strip()
@@ -80,6 +77,7 @@ async def chat(request: Request):
             display_name = user_nickname if user_nickname else "선생"
             full_prompt = f"{BASE_INSTRUCTION}\n상대방: {display_name} 선생님\n말투: 예의바르고 귀여운 존댓말\n질문: {user_message}"
 
+        # 5. 실행
         loop = asyncio.get_event_loop()
         reply_text = await loop.run_in_executor(executor, call_gemini, full_prompt)
 
