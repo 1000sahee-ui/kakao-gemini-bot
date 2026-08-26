@@ -71,7 +71,7 @@ async def chat(request: Request):
                     "template": {"outputs": [{"simpleText": {"text": fixed_answer}}]}
                 }
 
-        # 4. 사용자 프롬프트 구성 (아빠 / 선생님 구별)
+        # 4. 사용자 프롬프트 구성
         if "101동1604호" in user_nickname:
             user_prompt = (
                 f"{BASE_SYSTEM_INSTRUCTION}\n\n"
@@ -90,8 +90,8 @@ async def chat(request: Request):
                 f"질문: {user_message}"
             )
 
-        # 5. Gemini AI 답변 생성 (호환성 보장되는 gemini-2.0-flash 사용)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        # 5. Gemini AI 답변 생성 (요청된 gemini-3.6-flash 사용)
+        model = genai.GenerativeModel("gemini-3.6-flash")
         response = model.generate_content(user_prompt)
         reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
