@@ -11,7 +11,11 @@ executor = ThreadPoolExecutor(max_workers=5)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    # client_options를 명시하여 인증 방식 오류(401) 및 엔드포인트 혼선 방지
+    genai.configure(
+        api_key=GEMINI_API_KEY,
+        client_options={"api_endpoint": "generativelanguage.googleapis.com"}
+    )
 
 RESTRICTED_KEYWORDS = ["19금", "성인", "야동", "야설", "조건만남", "도박", "바카라", "토토", "대출", "마약", "섹스", "자살"]
 RESTRICTED_RESPONSE = "어? 그건 가을이가 잘 모르는 나쁜 단어 같아요! 몰라요 몰라 🙈"
@@ -35,7 +39,6 @@ def call_gemini(prompt: str) -> str:
         return "❌ [오류]: GEMINI_API_KEY 환경변수가 설정되어 있지 않습니다!"
     
     try:
-        # 올바른 모델명으로 수정 (404 에러 방지)
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         
@@ -53,7 +56,7 @@ async def chat(request: Request):
         user_properties = body.get("userRequest", {}).get("user", {}).get("properties", {})
         user_nickname = user_properties.get("nickname", "") if user_properties else ""
 
-        # 1. 금지어 검사 (호출어 필터보다 먼저 수행)
+        # 1. 금지어 검사
         for bad_word in RESTRICTED_KEYWORDS:
             if bad_word in user_message:
                 return {
