@@ -40,7 +40,7 @@ async def chat(request: Request):
         user_properties = body.get("userRequest", {}).get("user", {}).get("properties", {})
         user_nickname = user_properties.get("nickname", "") if user_properties else ""
 
-        # 1. "가을아" 또는 "가을이" 호출 조건 검사 (호출어가 없으면 무응답)
+        # 1. "가을아" 또는 "가을이" 호출 조건 검사
         if "가을아" not in user_message and "가을이" not in user_message:
             return {
                 "version": "2.0",
@@ -88,8 +88,8 @@ async def chat(request: Request):
                 f"질문: {user_message}"
             )
 
-        # 5. Gemini AI 답변 생성 (최신 표준 gemini-2.5-flash 적용)
-        model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=BASE_SYSTEM_INSTRUCTION)
+        # 5. Gemini AI 답변 생성 (가장 표준적인 모델 사용)
+        model = genai.GenerativeModel("gemini-1.5-flash-latest", system_instruction=BASE_SYSTEM_INSTRUCTION)
         response = model.generate_content(user_prompt)
         reply_text = response.text if response.text else "가을이가 뭐라고 답해야 할지 모르겠어요! 🐣"
 
@@ -99,13 +99,14 @@ async def chat(request: Request):
         }
 
     except Exception as e:
+        # ⚠️ 카카오톡으로 실제 발생한 영문 에러 출력
         return {
             "version": "2.0",
             "template": {
                 "outputs": [
                     {
                         "simpleText": {
-                            "text": "가을이가 잠시 딴생각을 했나 봐요! 다시 한번 말씀해 주세요 🐣"
+                            "text": f"[오류 발생]: {str(e)}"
                         }
                     }
                 ]
